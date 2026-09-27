@@ -85,6 +85,50 @@ flutter create --org de.schmierbrot --project-name zip_app --platforms android,i
 flutter pub get
 ```
 
+## iOS-Build mit Codemagic
+
+Ohne eigenen Mac lässt sich die iOS-App mit [Codemagic](https://codemagic.io) bauen. Die
+Konfiguration liegt in `codemagic.yaml` und enthält zwei Workflows (beide auf `mac_mini_m2`,
+im kostenlosen Plan enthalten):
+
+| Workflow | Zweck | Voraussetzung |
+|---|---|---|
+| `ios-check` | Pakete, Tests, `flutter build ios --no-codesign` – zeigt, dass die App kompiliert | keine |
+| `ios-testflight` | signierte IPA bauen und zu TestFlight hochladen | Apple Developer Program (99 €/Jahr) |
+
+Ein iPhone ohne Apple-Developer-Mitgliedschaft zu bespielen geht mit Codemagic nicht: Apple
+verlangt dafür eine Signatur, und die gibt es nur mit Mitgliedschaft (oder lokal mit Xcode auf
+einem Mac).
+
+### Einmalige Einrichtung für TestFlight
+
+1. **App Store Connect API-Schlüssel:** In App Store Connect unter *Benutzer und Zugriff →
+   Integrationen → App Store Connect API* einen Schlüssel mit der Rolle *App Manager* anlegen,
+   die `.p8`-Datei herunterladen, Issuer-ID und Key-ID notieren.
+2. **Schlüssel in Codemagic hinterlegen:** *Team settings → Team integrations → Developer Portal
+   → Manage keys → Add key*. Als Namen **`zip_asc`** verwenden (so steht es in
+   `codemagic.yaml`; bei anderem Namen dort anpassen).
+3. **Zertifikat:** *Team settings → codemagic.yaml settings → Code signing identities → iOS
+   certificates → Generate certificate*, Typ *Apple Distribution*, API-Schlüssel `zip_asc`.
+   Die angebotene Datei sicher aufbewahren (nur einmal herunterladbar).
+4. **App-ID und Profil (Apple Developer Portal):** Unter *Certificates, Identifiers & Profiles*
+   - *Identifiers → +* → App-ID mit der Bundle-ID **`de.schmierbrot.zipApp`** anlegen,
+   - *Profiles → +* → *App Store Connect* → diese App-ID und das Zertifikat aus Schritt 3 wählen.
+5. **Profil in Codemagic laden:** *Code signing identities → iOS provisioning profiles → Fetch
+   profiles* → das neue Profil auswählen und herunterladen.
+6. **App in App Store Connect anlegen:** *Apps → + → Neue App*, Plattform iOS, Bundle-ID
+   `de.schmierbrot.zipApp`, beliebiger Name (z. B. „Zip“).
+7. In Codemagic den Workflow **„iOS → TestFlight“** starten. Nach dem Upload dauert die
+   Verarbeitung bei Apple einige Minuten.
+8. In App Store Connect unter *TestFlight* dich als **interne:n Tester:in** hinzufügen, die App
+   **TestFlight** auf dem iPhone installieren und die Zip-App darüber laden. Interne Tests
+   brauchen keine Beta-Prüfung durch Apple.
+
+Die Build-Nummer kommt aus Codemagics fortlaufendem Zähler (`$BUILD_NUMBER`), die
+Versionsnummer aus `pubspec.yaml`. Die Frage nach der Exportkontrolle entfällt, weil
+`ITSAppUsesNonExemptEncryption = false` in der `Info.plist` steht (die App nutzt nur
+Standard-HTTPS für die Kartenkacheln).
+
 ## Aufbau
 
 ```
@@ -218,5 +262,5 @@ Ehrlich aufgeschrieben, wo die Umsetzung vom Pflichtenheft abweicht oder etwas a
 - **Nicht auf echter Hardware getestet:** `flutter analyze` ist ohne Befunde, alle Unit-Tests
   laufen, und ein Android-APK baut mit dem hier gezeigten Manifest (geprüft mit Flutter 3.47.5,
   Android SDK 36). BLE-Verbindung, Kopplung und Hintergrund-/Vordergrundwechsel mit dem echten
-  ESP konnten ohne Gerät nicht geprüft werden. Ein iOS-Build braucht macOS/Xcode und wurde nicht
-  ausgeführt.
+  ESP konnten ohne Gerät nicht geprüft werden. Einen iOS-Build konnte ich ohne macOS nicht
+  ausführen – der Codemagic-Workflow `ios-check` holt das nach.

@@ -1,0 +1,67 @@
+# Codemagic-Workflows für die iOS-App.
+#
+#   ios-check       Prüft, ob die iOS-App kompiliert (unsigniert, kein Apple-Konto nötig)
+#   ios-testflight  Signierte iOS-App → TestFlight (Apple Developer Program nötig)
+#
+# Beide laufen auf mac_mini_m2 – der einzige Maschinentyp im kostenlosen Plan.
+# Gestartet wird manuell über „Start new build“ in Codemagic.
+
+workflows:
+  ios-check:
+    name: iOS-Build prüfen (unsigniert)
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Pakete laden
+        script: |
+          flutter pub get
+      - name: Unit-Tests
+        script: |
+          flutter test
+      - name: iOS bauen (ohne Signatur)
+        script: |
+          flutter build ios --release --no-codesign --build-number=$BUILD_NUMBER
+    # Das Ergebnis ist nicht installierbar – dieser Workflow zeigt nur, dass
+    # die iOS-App mit allen Plugins fehlerfrei kompiliert.
+
+  ios-testflight:
+    name: iOS → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      # Name des App-Store-Connect-API-Schlüssels, wie er in Codemagic unter
+      # Integrations → Developer Portal angelegt wurde. Bei Bedarf anpassen.
+      app_store_connect: zip_asc
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: de.schmierbrot.zipApp
+    scripts:
+      - name: Signatur-Einstellungen ins Xcode-Projekt übernehmen
+        script: |
+          xcode-project use-profiles
+      - name: Pakete laden
+        script: |
+          flutter pub get
+      - name: Unit-Tests
+        script: |
+          flutter test
+      - name: IPA bauen
+        script: |
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
