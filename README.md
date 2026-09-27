@@ -85,49 +85,54 @@ flutter create --org de.schmierbrot --project-name zip_app --platforms android,i
 flutter pub get
 ```
 
-## iOS-Build mit Codemagic
+## iOS-IPA mit Codemagic
 
-Ohne eigenen Mac lässt sich die iOS-App mit [Codemagic](https://codemagic.io) bauen. Die
-Konfiguration liegt in `codemagic.yaml` und enthält zwei Workflows (beide auf `mac_mini_m2`,
-im kostenlosen Plan enthalten):
+Ohne eigenen Mac baut [Codemagic](https://codemagic.io) die iOS-App. Die Konfiguration liegt in
+`codemagic.yaml`, Workflow **`ios-ipa`** (läuft auf `mac_mini_m2`, im kostenlosen Plan
+enthalten):
 
-| Workflow | Zweck | Voraussetzung |
-|---|---|---|
-| `ios-check` | Pakete, Tests, `flutter build ios --no-codesign` – zeigt, dass die App kompiliert | keine |
-| `ios-testflight` | signierte IPA bauen und zu TestFlight hochladen | Apple Developer Program (99 €/Jahr) |
+1. In Codemagic die App öffnen, *Check for configuration files* klicken.
+2. *Start new build* → Branch wählen → Workflow **„iOS-IPA (unsigniert)“**.
+3. Nach etwa 10–15 Minuten liegt auf der Build-Seite unter *Artifacts* die Datei
+   `Zip-<Version>-<Build>.ipa`.
 
-Ein iPhone ohne Apple-Developer-Mitgliedschaft zu bespielen geht mit Codemagic nicht: Apple
-verlangt dafür eine Signatur, und die gibt es nur mit Mitgliedschaft (oder lokal mit Xcode auf
-einem Mac).
+Die IPA ist **unsigniert** – Apple erlaubt die Installation nur mit Signatur. Die übernimmt ein
+Sideload-Werkzeug beim Installieren mit deiner normalen Apple-ID (kein Developer-Konto nötig):
 
-### Einmalige Einrichtung für TestFlight
+- **Sideloadly** (Windows/macOS): iPhone per Kabel anschließen, IPA hineinziehen, Apple-ID
+  eingeben, *Start*.
+- **AltStore** (Windows/macOS): AltServer installieren, AltStore aufs iPhone bringen, dann in
+  AltStore unter *My Apps → +* die IPA öffnen.
 
-1. **App Store Connect API-Schlüssel:** In App Store Connect unter *Benutzer und Zugriff →
-   Integrationen → App Store Connect API* einen Schlüssel mit der Rolle *App Manager* anlegen,
-   die `.p8`-Datei herunterladen, Issuer-ID und Key-ID notieren.
-2. **Schlüssel in Codemagic hinterlegen:** *Team settings → Team integrations → Developer Portal
-   → Manage keys → Add key*. Als Namen **`zip_asc`** verwenden (so steht es in
-   `codemagic.yaml`; bei anderem Namen dort anpassen).
-3. **Zertifikat:** *Team settings → codemagic.yaml settings → Code signing identities → iOS
-   certificates → Generate certificate*, Typ *Apple Distribution*, API-Schlüssel `zip_asc`.
-   Die angebotene Datei sicher aufbewahren (nur einmal herunterladbar).
-4. **App-ID und Profil (Apple Developer Portal):** Unter *Certificates, Identifiers & Profiles*
-   - *Identifiers → +* → App-ID mit der Bundle-ID **`de.schmierbrot.zipApp`** anlegen,
-   - *Profiles → +* → *App Store Connect* → diese App-ID und das Zertifikat aus Schritt 3 wählen.
-5. **Profil in Codemagic laden:** *Code signing identities → iOS provisioning profiles → Fetch
-   profiles* → das neue Profil auswählen und herunterladen.
-6. **App in App Store Connect anlegen:** *Apps → + → Neue App*, Plattform iOS, Bundle-ID
-   `de.schmierbrot.zipApp`, beliebiger Name (z. B. „Zip“).
-7. In Codemagic den Workflow **„iOS → TestFlight“** starten. Nach dem Upload dauert die
-   Verarbeitung bei Apple einige Minuten.
-8. In App Store Connect unter *TestFlight* dich als **interne:n Tester:in** hinzufügen, die App
-   **TestFlight** auf dem iPhone installieren und die Zip-App darüber laden. Interne Tests
-   brauchen keine Beta-Prüfung durch Apple.
+Danach auf dem iPhone:
 
-Die Build-Nummer kommt aus Codemagics fortlaufendem Zähler (`$BUILD_NUMBER`), die
-Versionsnummer aus `pubspec.yaml`. Die Frage nach der Exportkontrolle entfällt, weil
-`ITSAppUsesNonExemptEncryption = false` in der `Info.plist` steht (die App nutzt nur
-Standard-HTTPS für die Kartenkacheln).
+- *Einstellungen → Allgemein → VPN und Geräteverwaltung* → deine Apple-ID → *Vertrauen*.
+- Ab iOS 16 zusätzlich *Einstellungen → Datenschutz & Sicherheit → Entwicklermodus* einschalten
+  (iPhone startet neu).
+
+Mit einer kostenlosen Apple-ID läuft die Signatur **nach 7 Tagen ab**. Dann die App neu
+signieren (AltStore erledigt das automatisch im WLAN, Sideloadly per erneutem Installieren).
+Beim Neu-Signieren mit derselben Apple-ID bleiben die gespeicherten Fahrten in der Regel erhalten.
+Bluetooth funktioniert in sideloaded Apps ganz normal.
+
+### Signiert über TestFlight (optional)
+
+Mit Apple Developer Program (99 €/Jahr) geht es ohne 7-Tage-Grenze über TestFlight. Dafür in
+`codemagic.yaml` den auskommentierten Workflow `ios-testflight` aktivieren und einmalig
+einrichten:
+
+1. In App Store Connect unter *Benutzer und Zugriff → Integrationen → App Store Connect API*
+   einen Schlüssel mit Rolle *App Manager* anlegen (`.p8`, Issuer-ID, Key-ID).
+2. In Codemagic unter *Team settings → Team integrations → Developer Portal → Manage keys* als
+   **`zip_asc`** hinterlegen.
+3. *Code signing identities → iOS certificates → Generate certificate* (Apple Distribution).
+4. Im Apple Developer Portal die App-ID **`de.schmierbrot.zipApp`** und ein Profil *App Store
+   Connect* anlegen, dann in Codemagic unter *iOS provisioning profiles → Fetch profiles* laden.
+5. In App Store Connect die App mit dieser Bundle-ID anlegen, Workflow starten, sich unter
+   *TestFlight* als interne:r Tester:in eintragen und die App über die TestFlight-App laden.
+
+`ITSAppUsesNonExemptEncryption = false` steht bereits in der `Info.plist`, damit entfällt die
+Frage nach der Exportkontrolle.
 
 ## Aufbau
 
@@ -263,4 +268,4 @@ Ehrlich aufgeschrieben, wo die Umsetzung vom Pflichtenheft abweicht oder etwas a
   laufen, und ein Android-APK baut mit dem hier gezeigten Manifest (geprüft mit Flutter 3.47.5,
   Android SDK 36). BLE-Verbindung, Kopplung und Hintergrund-/Vordergrundwechsel mit dem echten
   ESP konnten ohne Gerät nicht geprüft werden. Einen iOS-Build konnte ich ohne macOS nicht
-  ausführen – der Codemagic-Workflow `ios-check` holt das nach.
+  ausführen – der Codemagic-Workflow `ios-ipa` holt das nach.
