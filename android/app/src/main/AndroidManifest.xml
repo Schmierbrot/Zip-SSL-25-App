@@ -31,6 +31,10 @@
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="true" />
+    <!-- Standort nur für den BLE-Scan unter Android ≤ 11 – kein GPS im Telefon nötig -->
+    <uses-feature
+        android:name="android.hardware.location"
+        android:required="false" />
 
     <!-- Kartenkacheln (CARTO/OpenStreetMap) -->
     <uses-permission android:name="android.permission.INTERNET" />

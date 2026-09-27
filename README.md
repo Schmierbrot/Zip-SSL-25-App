@@ -161,6 +161,7 @@ umgesetzt und in `test/zip_protocol_test.dart` byteweise geprüft.
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
     <!-- Kartenkacheln -->
     <uses-permission android:name="android.permission.INTERNET" />
     …
@@ -214,6 +215,8 @@ Ehrlich aufgeschrieben, wo die Umsetzung vom Pflichtenheft abweicht oder etwas a
   angezeigt.
 - **Schrift:** Inter liegt gebündelt unter `assets/google_fonts/` (SIL Open Font License, siehe
   `OFL.txt`). Die App lädt keine Schriften aus dem Netz.
-- **Nicht auf echter Hardware getestet:** Build, `flutter analyze` und alle Unit-Tests laufen.
-  BLE-Verbindung, Kopplung und Hintergrund-/Vordergrundwechsel mit dem echten ESP konnten ohne
-  Gerät nicht geprüft werden.
+- **Nicht auf echter Hardware getestet:** `flutter analyze` ist ohne Befunde, alle Unit-Tests
+  laufen, und ein Android-APK baut mit dem hier gezeigten Manifest (geprüft mit Flutter 3.47.5,
+  Android SDK 36). BLE-Verbindung, Kopplung und Hintergrund-/Vordergrundwechsel mit dem echten
+  ESP konnten ohne Gerät nicht geprüft werden. Ein iOS-Build braucht macOS/Xcode und wurde nicht
+  ausgeführt.
